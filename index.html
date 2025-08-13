@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NLP Terms Extractor</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    animation: {
+                        'fade-in': 'fadeIn 0.5s ease-in-out',
+                        'slide-up': 'slideUp 0.3s ease-out',
+                        'bounce-gentle': 'bounceGentle 0.6s ease-in-out',
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0' },
+                            '100%': { opacity: '1' },
+                        },
+                        slideUp: {
+                            '0%': { transform: 'translateY(20px)', opacity: '0' },
+                            '100%': { transform: 'translateY(0)', opacity: '1' },
+                        },
+                        bounceGentle: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-5px)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+        }
+
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+
+        .card-hover:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+
+        .upload-area {
+            border: 2px dashed #cbd5e1;
+            transition: all 0.3s ease;
+        }
+
+        .upload-area:hover {
+            border-color: #3b82f6;
+            background-color: #f8fafc;
+        }
+
+        .upload-area.dragover {
+            border-color: #3b82f6;
+            background-color: #eff6ff;
+        }
+
+        .toast {
+            animation: slideIn 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            transform-origin: right center;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%) scale(0.8);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0) scale(1);
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-gradient-to-br from-slate-50 to-slate-100 min-h-screen">
+    <!-- Header -->
+    <header class="gradient-bg text-white py-2 px-4 fixed top-0 left-0 w-full z-40">
+        <div class="max-w-4xl mx-auto flex flex-col items-center justify-center gap-1">
+            <h1 class="text-2xl md:text-3xl font-bold mb-0 animate-fade-in tracking-tight">
+                🔍 NLP Terms Extractor
+            </h1>
+            <p class="text-sm md:text-base text-blue-100 animate-fade-in animation-delay-200 font-medium">
+                Extract and organize important terms from your text files
+            </p>
+        </div>
+    </header>
+    <main class="max-w-6xl mx-auto px-4 py-8" style="padding-top:64px;">
+        <!-- Upload Section -->
+        <div class="flex justify-center mt-10 mb-8">
+            <!-- Upload Box as Card -->
+            <div class="bg-white border border-gray-200 shadow-lg p-8 max-w-md w-full rounded-2xl" id="uploadArea"
+                style="cursor:pointer;">
+                <div class="text-center">
+                    <div class="text-4xl mb-3 text-blue-500">📁</div>
+                    <h3 class="text-lg font-semibold text-gray-700 mb-2">
+                        Upload TXT Files
+                    </h3>
+                    <p class="text-gray-500 mb-4 text-sm">
+                        Drag and drop or click to browse
+                    </p>
+                    <!-- Add ZIP name input -->
+                    <input type="text" id="zipNameInput"
+                        class="border border-gray-300 rounded-full px-4 py-2 mb-4 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Enter ZIP file name (default: extracted_terms.zip)">
+                    <div class="flex gap-3 justify-center">
+                        <button
+                            class="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-medium py-2.5 px-6 rounded-full transition-all duration-200 shadow-md hover:shadow-lg">
+                            Choose Files
+                        </button>
+                        <button id="downloadAllBtn"
+                            class="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-medium py-2.5 px-6 rounded-full transition-all duration-200 shadow-md hover:shadow-lg hidden">
+                            Download All
+                        </button>
+                    </div>
+                </div>
+                <input type="file" id="fileInput" multiple accept=".txt" class="hidden">
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div id="resultsSection" class="hidden">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">Extracted Terms</h2>
+            <div id="resultsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Cards will be dynamically added here -->
+            </div>
+        </div>
+
+        <!-- Empty State -->
+        <div id="emptyState" class="text-center py-16 animate-fade-in">
+            <div class="text-8xl mb-6">📝</div>
+            <h3 class="text-2xl font-semibold text-gray-700 mb-2">
+                Ready to Extract Terms
+            </h3>
+            <p class="text-gray-500 max-w-md mx-auto">
+                Upload your text files to start extracting important terms and keywords automatically
+            </p>
+        </div>
+    </main>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-2xl p-8 text-center">
+            <div class="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p class="text-gray-700 font-semibold">Processing files...</p>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
